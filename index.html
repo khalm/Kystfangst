@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>TeineSpotter</title>
+  <title>Kystfangst</title>
 
   <!-- PWA Manifest & Farger -->
   <link rel="manifest" href="manifest.json" />
@@ -37,7 +37,7 @@
       align-items: center;
       margin-bottom: 8px;
     }
-    .top-header h1 { font-size: 15px; font-weight: 600; }
+    .top-header h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
     
     .controls { display: flex; gap: 8px; align-items: center; font-size: 13px; flex-wrap: wrap; }
     
@@ -53,7 +53,6 @@
     }
     .btn:active { background: #1d4ed8; }
 
-    /* Installer-knapp: skjult som standard til nettleseren gir klarsignal */
     #installBtn {
       display: none;
       background: #16a34a;
@@ -87,7 +86,7 @@
 
   <div class="top-bar">
     <div class="top-header">
-      <h1>TeineSpotter</h1>
+      <h1>Kystfangst</h1>
       <button id="installBtn" onclick="installerPwa()">Installer app</button>
     </div>
     <div class="controls">
@@ -107,20 +106,19 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     // ----------------------------------------------------------------
-    // 1. Service Worker & Automatisk oppdatering
+    // 1. Service Worker & Oppdatering
     // ----------------------------------------------------------------
     let refreshing = false;
     navigator.serviceWorker?.addEventListener('controllerchange', () => {
       if (!refreshing) {
         refreshing = true;
-        window.location.reload(); // Laster inn siden på nytt automatisk ved ny deploy
+        window.location.reload();
       }
     });
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').then((reg) => {
-          // Sjekker etter oppdateringer jevnlig
           reg.update();
         }).catch((err) => {
           console.warn('SW-registrering feilet:', err);
@@ -137,7 +135,7 @@
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      installBtn.style.display = 'inline-block'; // Vises kun når appen faktisk kan installeres
+      installBtn.style.display = 'inline-block';
     });
 
     function installerPwa() {
@@ -157,16 +155,34 @@
     });
 
     // ----------------------------------------------------------------
-    // 3. Kart & Lag
+    // 3. Kart & Lag (Web Mercator / åpne kilder)
     // ----------------------------------------------------------------
-    const map = L.map('map', { zoomControl: false }).setView([62.37, 6.0], 12);
+    const map = L.map('map', { 
+      zoomControl: false,
+      maxZoom: 18,
+      minZoom: 5
+    }).setView([62.37, 6.0], 13);
+
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Kartverkets sjøkart
-    const sjokart = L.tileLayer.wms('https://wms.geonorge.no/skwms1/wms.sjokart_raster?', {
+    // Kystkontur og terreng
+    const topoBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '© Esri, Kartverket',
+      maxZoom: 18
+    }).addTo(map);
+
+    // Fyrlykter, sjømerker og grunner
+    const sjomerker = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+      attribution: '© OpenSeaMap',
+      maxZoom: 18
+    }).addTo(map);
+
+    // Kartverkets sjøkartraster
+    const sjokartRaster = L.tileLayer.wms('https://opencache.statkart.no/gatekeeper/gk/gk.open?', {
       layers: 'sjokartraster',
       format: 'image/png',
-      transparent: false,
+      transparent: true,
+      opacity: 0.85,
       attribution: '© Kartverket'
     }).addTo(map);
 
@@ -175,11 +191,11 @@
       layers: 'Sedimentkornstorrelse_omrade',
       format: 'image/png',
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.5,
       attribution: '© NGU'
     }).addTo(map);
 
-    // Fiskeridirektoratets fredningsområder
+    // Fiskeridirektoratets hummerfredningsområder
     const fredningslag = L.tileLayer.wms('https://kart.fiskeridir.no/wms.aspx?', {
       layers: 'hummerreservat',
       format: 'image/png',
@@ -188,6 +204,9 @@
       attribution: '© Fiskeridirektoratet'
     }).addTo(map);
 
+    // ----------------------------------------------------------------
+    // 4. Kasteposisjon og sirkel
+    // ----------------------------------------------------------------
     let kasteSirkel = null;
     let klikkMarkor = null;
 
@@ -201,6 +220,7 @@
 
       klikkMarkor = L.marker(latlng).addTo(map);
 
+      // 5-meters kastesirkel
       kasteSirkel = L.circle(latlng, {
         radius: 5,
         color: '#ef4444',
@@ -217,7 +237,7 @@
 
     function finnMinPosisjon() {
       if (!navigator.geolocation) {
-        alert("Geolokasjon støttes ikke.");
+        alert("Geolokasjon støttes ikke av nettleseren.");
         return;
       }
       navigator.geolocation.getCurrentPosition(
