@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Kystfangst v0.8.0</title>
+  <title>Kystfangst v0.9.0</title>
 
   <!-- PWA Manifest & Farger -->
   <link rel="manifest" href="manifest.json" />
@@ -88,7 +88,6 @@
       width: 100%;
     }
 
-    /* Stepper for punkter (+ / -) */
     .stepper-container {
       display: flex;
       align-items: center;
@@ -141,6 +140,32 @@
     .btn:active { background: #1d4ed8; }
     .btn-secondary { background: #334155; }
 
+    /* Navigasjon og Handlingsknapper i kort */
+    .btn-nav {
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+    }
+    .btn-copy {
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
     .info-panel {
       position: absolute;
       bottom: 20px;
@@ -155,7 +180,7 @@
       font-family: sans-serif;
       font-size: 12px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.45);
-      max-height: 230px;
+      max-height: 250px;
       overflow-y: auto;
     }
     .info-panel h3 { font-size: 13px; color: #38bdf8; margin-bottom: 4px; }
@@ -163,7 +188,7 @@
     .spot-card {
       background: #0f172a;
       border-radius: 8px;
-      padding: 8px 10px;
+      padding: 9px 11px;
       margin-top: 6px;
       border-left: 4px solid #22c55e;
     }
@@ -182,6 +207,11 @@
       font-size: 11px;
       line-height: 1.4;
       color: #cbd5e1;
+    }
+    .button-group {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
     }
 
     .leaflet-popup-content-wrapper {
@@ -208,7 +238,7 @@
     <div class="top-header">
       <div class="title-group">
         <h1>Kystfangst</h1>
-        <span class="version-tag">v0.8.0</span>
+        <span class="version-tag">v0.9.0</span>
       </div>
       <button id="installBtn" onclick="installerPwa()">Installer app</button>
     </div>
@@ -248,7 +278,6 @@
         </select>
       </div>
 
-      <!-- Pluss / Minus for antall punkter -->
       <div class="select-item" style="grid-column: span 2;">
         <label>Antall spesifikke punkter</label>
         <div class="stepper-container">
@@ -266,8 +295,8 @@
   </div>
 
   <div class="info-panel" id="infoPanel">
-    <h3>Områdeskanning med soner</h3>
-    Trykk i kartet eller trykk «Bruk GPS». Appen skanner radiusen, tegner opp gode soner («farget sky») og viser de beste rangerte punktene.
+    <h3>Områdeskanning & Navigasjon</h3>
+    Trykk i kartet for å skanne. <em>Hold inne i 1 sekund</em> for å droppe egen markør hvor som helst.
   </div>
 
   <div id="map"></div>
@@ -452,7 +481,86 @@
     }
 
     // ----------------------------------------------------------------
-    // 4. Stepper-håndtering (+ / - for punkter)
+    // 4. Hjelpefunksjoner for Navigasjon og Kopiering
+    // ----------------------------------------------------------------
+    function kopierKoordinater(lat, lng) {
+      const coordStr = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      navigator.clipboard.writeText(coordStr).then(() => {
+        alert("Kopierte koordinater til utklippstavlen:\n" + coordStr);
+      }).catch(() => {
+        prompt("Kopier koordinatene herfra:", coordStr);
+      });
+    }
+
+    function faaNavigasjonsUrl(lat, lng) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${lat.toFixed(6)},${lng.toFixed(6)}`;
+    }
+
+    // ----------------------------------------------------------------
+    // 5. Long-press (Hold inne) for å droppe egen pin
+    // ----------------------------------------------------------------
+    let manuellPin = null;
+    let pressTimer = null;
+
+    map.on('mousedown touchstart', function(e) {
+      pressTimer = window.setTimeout(async () => {
+        const latlng = e.latlng;
+        droppEgenPin(latlng);
+      }, 650); // 650ms hold-tid for mobil
+    });
+
+    map.on('mouseup touchend dragstart zoomstart', function() {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    });
+
+    async function droppEgenPin(latlng) {
+      if (manuellPin) map.removeLayer(manuellPin);
+
+      const lillaIkon = L.divIcon({
+        className: 'custom-pin',
+        html: `<div style="background:#8b5cf6; color:white; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:16px; border:2px solid white; box-shadow:0 3px 10px rgba(0,0,0,0.6);">📍</div>`,
+        iconSize: [30, 30]
+      });
+
+      manuellPin = L.marker(latlng, { icon: lillaIkon }).addTo(map);
+
+      // Hent sediment og dybdeestimat for punktet
+      const bunn = await hentNGUSediment(latlng.lat, latlng.lng) || "Fjell / Hardbunn";
+      const navUrl = faaNavigasjonsUrl(latlng.lat, latlng.lng);
+
+      const html = `
+        <div class="popup-title">📍 Egendroppet markør</div>
+        <div><strong>Koordinater:</strong> ${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</div>
+        <div><strong>Bunnforhold:</strong> ${bunn}</div>
+        <div class="button-group">
+          <a class="btn-nav" href="${navUrl}" target="_blank">🗺️ Naviger</a>
+          <button class="btn-copy" onclick="kopierKoordinater(${latlng.lat}, ${latlng.lng})">📋 Kopier</button>
+        </div>
+      `;
+
+      manuellPin.bindPopup(html).openPopup();
+
+      document.getElementById('infoPanel').innerHTML = `
+        <div class="spot-card" style="border-left-color:#8b5cf6;">
+          <div class="spot-card-header">
+            <span>📍 Egendroppet markør</span>
+            <span style="color:#a78bfa;">EGET PUNKT</span>
+          </div>
+          <div><strong>Koordinater:</strong> ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}</div>
+          <div><strong>Registrert bunn:</strong> ${bunn}</div>
+          <div class="button-group">
+            <a class="btn-nav" href="${navUrl}" target="_blank">🗺️ Naviger med Google Maps</a>
+            <button class="btn-copy" onclick="kopierKoordinater(${latlng.lat}, ${latlng.lng})">📋 Kopier koordinater</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // ----------------------------------------------------------------
+    // 6. Stepper-håndtering (+ / -)
     // ----------------------------------------------------------------
     let onsketAntallPunkter = 3;
     function endreAntallPunkter(delta) {
@@ -465,18 +573,18 @@
     }
 
     // ----------------------------------------------------------------
-    // 5. Områdeskanning med fargede soner («sky») og rangerte punkter
+    // 7. Områdeskanning med soner og rangerte punkter
     // ----------------------------------------------------------------
     let senterPosisjon = null;
     let radiusSirkel = null;
     let senterMarkor = null;
     
-    // Beholdere for kartobjekter
     let soneLag = [];
     let funnMarkorer = [];
     let kastesirkler = [];
     let lagredeEvaluertePunkter = [];
 
+    // Enkelt-klikk for områdeskann (kun hvis man ikke holdt inne)
     map.on('click', function(e) {
       settSenterOgSkann(e.latlng);
     });
@@ -583,7 +691,7 @@
 
       document.getElementById('infoPanel').innerHTML = `
         <h3>Skanner kyst og dybde (${radiusMeter}m)...</h3>
-        <div>Beregner habitatsoner og rangerer punkter for ${profil.navn}...</div>
+        <div>Beregner habitatsoner og forbereder navigasjon for ${profil.navn}...</div>
       `;
 
       const dLat = radiusMeter / 111300;
@@ -683,15 +791,11 @@
         });
       }
 
-      // Sorter strengt: beste score først (rangering 1, 2, 3...)
       lagredeEvaluertePunkter.sort((a, b) => b.score - a.score);
-
       tegnGjeldendePunkterOgSoner();
     }
 
-    // Tegner fargede soner («skyer») + det antallet spesifikke punkter brukeren har valgt
     function tegnGjeldendePunkterOgSoner() {
-      // Nullstill gamle markører og soner
       soneLag.forEach(s => map.removeLayer(s));
       funnMarkorer.forEach(m => map.removeLayer(m));
       kastesirkler.forEach(c => map.removeLayer(c));
@@ -706,11 +810,10 @@
       const posisjon = document.getElementById('posisjonSelect').value;
       const profil = ARTS_DATA[metode][art];
 
-      // 1. Tegn «Fargede soner» (Gode soner = myke sirkler med gradient/opacity)
       lagredeEvaluertePunkter.forEach(spot => {
         if (spot.score >= 65) {
           const erToppSone = spot.score >= 80;
-          const soneFarge = erToppSone ? '#22c55e' : '#06b6d4'; // Grønn for topp, Cyan for god
+          const soneFarge = erToppSone ? '#22c55e' : '#06b6d4';
           const radiusMeter = posisjon === 'land' ? 45 : 85;
 
           const skySone = L.circle([spot.lat, spot.lng], {
@@ -724,21 +827,20 @@
 
           skySone.bindPopup(`
             <strong>${erToppSone ? '🌟 Meget god sone' : '👍 God sone'}: ${spot.type}</strong><br>
-            Forventet bunn: ${spot.bunn}<br>
-            <em>Området har gunstige strøm- og dybdeforhold.</em>
+            Bunn: ${spot.bunn}<br>
+            <em>Gunstig kystformasjon for ${profil.navn}.</em>
           `);
           soneLag.push(skySone);
         }
       });
 
-      // 2. Tegn ut de N rangerte spesifikke punktene
       const synligePunkter = lagredeEvaluertePunkter.slice(0, onsketAntallPunkter);
 
       synligePunkter.forEach((spot, idx) => {
         let farge = '#ef4444';
-        if (idx === 0) farge = '#eab308'; // Gull (#1)
-        else if (idx === 1) farge = '#94a3b8'; // Sølv (#2)
-        else if (idx === 2) farge = '#b45309'; // Bronse (#3)
+        if (idx === 0) farge = '#eab308';
+        else if (idx === 1) farge = '#94a3b8';
+        else if (idx === 2) farge = '#b45309';
         else if (spot.score >= 80) farge = '#22c55e';
         else farge = '#38bdf8';
 
@@ -761,13 +863,18 @@
           kastesirkler.push(sirkel);
         }
 
+        const navUrl = faaNavigasjonsUrl(spot.lat, spot.lng);
+
         m.bindPopup(`
           <div class="popup-title">Plass #${idx+1}: ${spot.type}</div>
           <div><strong>Kvalitetsscore:</strong> <span style="color:${farge}; font-weight:bold;">${spot.score}%</span></div>
-          <div><strong>Bunn:</strong> ${spot.bunn}</div>
-          <div><strong>Dybde:</strong> ${spot.dybde}</div>
+          <div><strong>Bunn:</strong> ${spot.bunn} | <strong>Dybde:</strong> ${spot.dybde}</div>
           <div class="popup-reason">${spot.begrunnelse}</div>
-          ${posisjon === 'land' ? '<div style="margin-top:4px; font-size:10px; color:#94a3b8;">Farget ring markerer 5m kasterekkevidde.</div>' : ''}
+          <div class="button-group">
+            <a class="btn-nav" href="${navUrl}" target="_blank">🗺️ Naviger</a>
+            <button class="btn-copy" onclick="kopierKoordinater(${spot.lat}, ${spot.lng})">📋 Kopier</button>
+          </div>
+          ${posisjon === 'land' ? '<div style="margin-top:6px; font-size:10px; color:#94a3b8;">Sirkel = 5m kasterekkevidde.</div>' : ''}
         `);
 
         m.on('click', () => {
@@ -777,24 +884,27 @@
         funnMarkorer.push(m);
       });
 
-      // Oppdater info-panel i bunnen
       if (synligePunkter.length > 0) {
         visDetaljertFunn(synligePunkter[0], "🥇 Toppforslag (#1)", '#eab308');
       }
     }
 
     function visDetaljertFunn(spot, tittel, farge) {
+      const navUrl = faaNavigasjonsUrl(spot.lat, spot.lng);
+
       document.getElementById('infoPanel').innerHTML = `
         <div class="spot-card" style="border-left-color:${farge};">
           <div class="spot-card-header">
             <span>${tittel}: ${spot.type}</span>
             <span style="color:#4ade80;">${spot.score}% MATCH</span>
           </div>
-          <div><strong>Bunnforhold:</strong> ${spot.bunn} | <strong>Dybde:</strong> ${spot.dybde}</div>
+          <div><strong>Bunn:</strong> ${spot.bunn} | <strong>Dybde:</strong> ${spot.dybde}</div>
+          <div><strong>Koordinater:</strong> ${spot.lat.toFixed(5)}, ${spot.lng.toFixed(5)}</div>
           <div class="reason-box">${spot.begrunnelse}</div>
-        </div>
-        <div style="margin-top:6px; font-size:11px; color:#94a3b8;">
-          Fargede skyer = gode soner. Bruk [+] / [−] øverst for å vise flere eller færre spesifikke punkter.
+          <div class="button-group">
+            <a class="btn-nav" href="${navUrl}" target="_blank">🗺️ Naviger med Google Maps</a>
+            <button class="btn-copy" onclick="kopierKoordinater(${spot.lat}, ${spot.lng})">📋 Kopier koordinater</button>
+          </div>
         </div>
       `;
     }
