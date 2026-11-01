@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Kystfangst</title>
+  <title>Kystfangst v0.1.0</title>
 
   <!-- PWA Manifest & Farger -->
   <link rel="manifest" href="manifest.json" />
@@ -37,7 +37,20 @@
       align-items: center;
       margin-bottom: 8px;
     }
+    .title-group {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
     .top-header h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
+    .version-tag {
+      font-size: 10px;
+      font-weight: 500;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
     
     .controls { display: flex; gap: 8px; align-items: center; font-size: 13px; flex-wrap: wrap; }
     
@@ -86,7 +99,10 @@
 
   <div class="top-bar">
     <div class="top-header">
-      <h1>Kystfangst</h1>
+      <div class="title-group">
+        <h1>Kystfangst</h1>
+        <span class="version-tag">v0.1.0</span>
+      </div>
       <button id="installBtn" onclick="installerPwa()">Installer app</button>
     </div>
     <div class="controls">
