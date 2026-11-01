@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>TeineSpotter</title>
+
+  <!-- PWA Manifest & Farger -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#121826" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦀</text></svg>" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #map { height: 100%; width: 100%; }
+
+    .top-bar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: rgba(18, 24, 38, 0.94);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+    }
+    .top-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .top-header h1 { font-size: 15px; font-weight: 600; }
+    
+    .controls { display: flex; gap: 8px; align-items: center; font-size: 13px; flex-wrap: wrap; }
+    
+    .btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 7px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:active { background: #1d4ed8; }
+
+    /* Installer-knapp: skjult som standard til nettleseren gir klarsignal */
+    #installBtn {
+      display: none;
+      background: #16a34a;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #installBtn:active { background: #15803d; }
+
+    .legend-box {
+      position: absolute;
+      bottom: 20px;
+      left: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: rgba(18, 24, 38, 0.94);
+      color: #e2e8f0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-family: sans-serif;
+      font-size: 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div class="top-header">
+      <h1>TeineSpotter</h1>
+      <button id="installBtn" onclick="installerPwa()">Installer app</button>
+    </div>
+    <div class="controls">
+      <button class="btn" id="locateBtn" onclick="finnMinPosisjon()">Min posisjon</button>
+      <label><input type="checkbox" id="toggleSediment" checked onchange="toggleLag()"> Bunn</label>
+      <label><input type="checkbox" id="toggleFredet" checked onchange="toggleLag()"> Fredning</label>
+    </div>
+  </div>
+
+  <div class="legend-box" id="infoBox">
+    Trykk i kartet for å sette 5-meters kastesirkel og lese av dybdekurver.
+  </div>
+
+  <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // ----------------------------------------------------------------
+    // 1. Service Worker & Automatisk oppdatering
+    // ----------------------------------------------------------------
+    let refreshing = false;
+    navigator.serviceWorker?.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload(); // Laster inn siden på nytt automatisk ved ny deploy
+      }
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then((reg) => {
+          // Sjekker etter oppdateringer jevnlig
+          reg.update();
+        }).catch((err) => {
+          console.warn('SW-registrering feilet:', err);
+        });
+      });
+    }
+
+    // ----------------------------------------------------------------
+    // 2. Installer-knapp logikk
+    // ----------------------------------------------------------------
+    let deferredPrompt = null;
+    const installBtn = document.getElementById('installBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = 'inline-block'; // Vises kun når appen faktisk kan installeres
+    });
+
+    function installerPwa() {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          installBtn.style.display = 'none';
+        }
+        deferredPrompt = null;
+      });
+    }
+
+    window.addEventListener('appinstalled', () => {
+      installBtn.style.display = 'none';
+      deferredPrompt = null;
+    });
+
+    // ----------------------------------------------------------------
+    // 3. Kart & Lag
+    // ----------------------------------------------------------------
+    const map = L.map('map', { zoomControl: false }).setView([62.37, 6.0], 12);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    // Kartverkets sjøkart
+    const sjokart = L.tileLayer.wms('https://wms.geonorge.no/skwms1/wms.sjokart_raster?', {
+      layers: 'sjokartraster',
+      format: 'image/png',
+      transparent: false,
+      attribution: '© Kartverket'
+    }).addTo(map);
+
+    // NGU Bunnsedimenter
+    const bunnlag = L.tileLayer.wms('https://geo.ngu.no/geoserver/marin_sedimentkornstorrelse/wms?', {
+      layers: 'Sedimentkornstorrelse_omrade',
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.45,
+      attribution: '© NGU'
+    }).addTo(map);
+
+    // Fiskeridirektoratets fredningsområder
+    const fredningslag = L.tileLayer.wms('https://kart.fiskeridir.no/wms.aspx?', {
+      layers: 'hummerreservat',
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.65,
+      attribution: '© Fiskeridirektoratet'
+    }).addTo(map);
+
+    let kasteSirkel = null;
+    let klikkMarkor = null;
+
+    map.on('click', function(e) {
+      markerKastesone(e.latlng, "Valgt kasteplass");
+    });
+
+    function markerKastesone(latlng, tekst) {
+      if (kasteSirkel) map.removeLayer(kasteSirkel);
+      if (klikkMarkor) map.removeLayer(klikkMarkor);
+
+      klikkMarkor = L.marker(latlng).addTo(map);
+
+      kasteSirkel = L.circle(latlng, {
+        radius: 5,
+        color: '#ef4444',
+        fillColor: '#ef4444',
+        fillOpacity: 0.35,
+        weight: 2
+      }).addTo(map);
+
+      document.getElementById('infoBox').innerHTML = 
+        `<strong>${tekst}</strong><br>` +
+        `Rød ring = 5 m rekkevidde.<br>` +
+        `Treffer ringen 5m/10m-koter ved kanten?`;
+    }
+
+    function finnMinPosisjon() {
+      if (!navigator.geolocation) {
+        alert("Geolokasjon støttes ikke.");
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const latlng = [pos.coords.latitude, pos.coords.longitude];
+          map.setView(latlng, 17);
+          markerKastesone(latlng, "Din GPS-posisjon");
+        },
+        (err) => alert("Kunne ikke hente posisjon: " + err.message),
+        { enableHighAccuracy: true }
+      );
+    }
+
+    function toggleLag() {
+      const showSediment = document.getElementById('toggleSediment').checked;
+      const showFredet = document.getElementById('toggleFredet').checked;
+
+      if (showSediment) map.addLayer(bunnlag); else map.removeLayer(bunnlag);
+      if (showFredet) map.addLayer(fredningslag); else map.removeLayer(fredningslag);
+    }
+  </script>
+</body>
+</html>
