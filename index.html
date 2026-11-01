@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Kystfangst v0.1.0</title>
+  <title>Kystfangst v0.2.0</title>
 
   <!-- PWA Manifest & Farger -->
   <link rel="manifest" href="manifest.json" />
@@ -17,43 +17,85 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #map { height: 100%; width: 100%; }
 
-    .top-bar {
+    /* Toppmeny */
+    .top-panel {
       position: absolute;
       top: 10px;
       left: 10px;
       right: 10px;
       z-index: 1000;
-      background: rgba(18, 24, 38, 0.94);
-      backdrop-filter: blur(8px);
+      background: rgba(18, 24, 38, 0.95);
+      backdrop-filter: blur(10px);
       color: #fff;
-      padding: 10px 14px;
-      border-radius: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
     .top-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
-    .title-group {
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
-    }
-    .top-header h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
+    .title-group { display: flex; align-items: baseline; gap: 6px; }
+    .top-header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
     .version-tag {
       font-size: 10px;
-      font-weight: 500;
-      color: #94a3b8;
-      background: rgba(255, 255, 255, 0.1);
-      padding: 2px 5px;
+      font-weight: 600;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.15);
+      padding: 2px 6px;
       border-radius: 4px;
     }
-    
-    .controls { display: flex; gap: 8px; align-items: center; font-size: 13px; flex-wrap: wrap; }
-    
+
+    #installBtn {
+      display: none;
+      background: #16a34a;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Valgmenyer (grid) */
+    .selectors-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .select-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .select-item label {
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+    select {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      width: 100%;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-top: 4px;
+    }
     .btn {
       background: #2563eb;
       color: white;
@@ -63,57 +105,106 @@
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
+      flex: 1;
+      text-align: center;
     }
     .btn:active { background: #1d4ed8; }
+    .btn-secondary { background: #334155; }
 
-    #installBtn {
-      display: none;
-      background: #16a34a;
-      color: white;
-      border: none;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    #installBtn:active { background: #15803d; }
-
-    .legend-box {
+    /* Bunn-info / Råd */
+    .info-panel {
       position: absolute;
       bottom: 20px;
       left: 10px;
       right: 10px;
       z-index: 1000;
-      background: rgba(18, 24, 38, 0.94);
+      background: rgba(18, 24, 38, 0.95);
+      backdrop-filter: blur(8px);
       color: #e2e8f0;
-      padding: 10px 14px;
-      border-radius: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
       font-family: sans-serif;
       font-size: 12px;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .info-panel h3 { font-size: 13px; color: #38bdf8; margin-bottom: 4px; }
+    .advice-badge {
+      display: inline-block;
+      background: #0f172a;
+      border-left: 3px solid #38bdf8;
+      padding: 4px 8px;
+      margin-top: 6px;
+      font-size: 11px;
+      color: #cbd5e1;
+      width: 100%;
+      border-radius: 0 4px 4px 0;
     }
   </style>
 </head>
 <body>
 
-  <div class="top-bar">
+  <!-- Topp-panel med innstillinger -->
+  <div class="top-panel">
     <div class="top-header">
       <div class="title-group">
         <h1>Kystfangst</h1>
-        <span class="version-tag">v0.1.0</span>
+        <span class="version-tag">v0.2.0</span>
       </div>
       <button id="installBtn" onclick="installerPwa()">Installer app</button>
     </div>
-    <div class="controls">
-      <button class="btn" id="locateBtn" onclick="finnMinPosisjon()">Min posisjon</button>
-      <label><input type="checkbox" id="toggleSediment" checked onchange="toggleLag()"> Bunn</label>
-      <label><input type="checkbox" id="toggleFredet" checked onchange="toggleLag()"> Fredning</label>
+
+    <div class="selectors-grid">
+      <!-- 1. Metode -->
+      <div class="select-item">
+        <label>Metode</label>
+        <select id="metodeSelect" onchange="oppdaterArter(); genererForslag();">
+          <option value="teine">🦀 Teine</option>
+          <option value="garn">🕸️ Garn</option>
+          <option value="stang">🎣 Stangfiske</option>
+        </select>
+      </div>
+
+      <!-- 2. Art -->
+      <div class="select-item">
+        <label>Art</label>
+        <select id="artSelect" onchange="genererForslag();">
+          <!-- Fylles dynamisk i JS -->
+        </select>
+      </div>
+
+      <!-- 3. Posisjon (Land vs Båt) -->
+      <div class="select-item">
+        <label>Posisjon</label>
+        <select id="posisjonSelect" onchange="genererForslag();">
+          <option value="land">Fra land</option>
+          <option value="baat">I båt</option>
+        </select>
+      </div>
+
+      <!-- 4. Søkeradius -->
+      <div class="select-item">
+        <label>Søkeradius</label>
+        <select id="radiusSelect" onchange="oppdaterRadiusSirkel(); genererForslag();">
+          <option value="300">300 meter</option>
+          <option value="750" selected>750 meter</option>
+          <option value="1500">1.5 km</option>
+          <option value="3000">3.0 km</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn" onclick="finnMinPosisjon()">Bruk GPS</button>
+      <button class="btn btn-secondary" onclick="toggleKartlag()">Kartlag (Bunn/Fredet)</button>
     </div>
   </div>
 
-  <div class="legend-box" id="infoBox">
-    Trykk i kartet for å sette 5-meters kastesirkel og lese av dybdekurver.
+  <!-- Info og forslag i bunnen -->
+  <div class="info-panel" id="infoPanel">
+    <h3>Velg et sted</h3>
+    Trykk hvor som helst i kartet eller trykk «Bruk GPS» for å få konkrete forslag for valgt redskap og art.
   </div>
 
   <div id="map"></div>
@@ -122,7 +213,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     // ----------------------------------------------------------------
-    // 1. Service Worker & Oppdatering
+    // 1. Service Worker & PWA-installering
     // ----------------------------------------------------------------
     let refreshing = false;
     navigator.serviceWorker?.addEventListener('controllerchange', () => {
@@ -134,20 +225,12 @@
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then((reg) => {
-          reg.update();
-        }).catch((err) => {
-          console.warn('SW-registrering feilet:', err);
-        });
+        navigator.serviceWorker.register('./sw.js').then(r => r.update()).catch(console.warn);
       });
     }
 
-    // ----------------------------------------------------------------
-    // 2. Installer-knapp logikk
-    // ----------------------------------------------------------------
     let deferredPrompt = null;
     const installBtn = document.getElementById('installBtn');
-
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
@@ -157,49 +240,130 @@
     function installerPwa() {
       if (!deferredPrompt) return;
       deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult) => {
-        if (choiceResult.outcome === 'accepted') {
-          installBtn.style.display = 'none';
-        }
-        deferredPrompt = null;
-      });
+      deferredPrompt.userChoice.then(() => { installBtn.style.display = 'none'; });
     }
 
-    window.addEventListener('appinstalled', () => {
-      installBtn.style.display = 'none';
-      deferredPrompt = null;
-    });
+    // ----------------------------------------------------------------
+    // 2. Kunnskapsbase for metoder og arter
+    // ----------------------------------------------------------------
+    const ARTS_DATA = {
+      teine: {
+        generelt: {
+          navn: "Alle arter / Generelt råd",
+          dybdeLand: "8 - 25 m (5m kast)",
+          dybdeBaat: "10 - 45 m",
+          bunn: "Fjellskråning, ur eller overgang mot grov grus",
+          tips: "Kast kun der svaberget eller kaia faller loddrett. Unngå flat mudderbunn."
+        },
+        krabbe: {
+          navn: "Taskekrabbe",
+          dybdeLand: "8 - 20 m",
+          dybdeBaat: "15 - 40 m",
+          bunn: "Fjellhyller, steinbunn og overganger mot sand",
+          tips: "Krabben trekker opp på hardbunn i skumringen. Søk langs moloer og dype kystkanter."
+        },
+        hummer: {
+          navn: "Hummer",
+          dybdeLand: "5 - 20 m",
+          dybdeBaat: "8 - 30 m",
+          bunn: "Grov ur, sprekkedannelser, tarebelter",
+          tips: "Krever huler og skjul. Sjekk at området ikke ligger i hummerreservat!"
+        }
+      },
+      garn: {
+        generelt: {
+          navn: "Alle arter / Generelt råd",
+          dybdeLand: "10 - 30 m (Kastegarn / Fra molo)",
+          dybdeBaat: "15 - 60 m",
+          bunn: "Sandlommer mellom undervannsskjær",
+          tips: "Fra land kreves spesiell rigging eller setting fra dype nes/molo. Husk nedsenkingsregler!"
+        },
+        torsk: {
+          navn: "Torsk / Sei",
+          dybdeLand: "10 - 25 m",
+          dybdeBaat: "20 - 50 m",
+          bunn: "Terskler, sund med strøm, tarebunn",
+          tips: "Sett på tvers av strømmen ved odder og terskler der strømmen fører med seg byttedyr."
+        },
+        flyndre: {
+          navn: "Flyndre / Kveite",
+          dybdeLand: "5 - 15 m",
+          dybdeBaat: "10 - 40 m",
+          bunn: "Ren sand- eller finkornet grusbunn",
+          tips: "Søk i bukter og viker med jevn sandbunn. Unngå grov sprengstein."
+        }
+      },
+      stang: {
+        generelt: {
+          navn: "Alle arter / Generelt råd",
+          dybdeLand: "5 - 35 m (Kastehold 30-60m)",
+          dybdeBaat: "15 - 80 m",
+          bunn: "Variert: marbakke, tare og strømsund",
+          tips: "Bruk sluk med ulik vekt for å avsøke hele vannsøylen fra topp til bunn."
+        },
+        sjoorret: {
+          navn: "Sjøørret",
+          dybdeLand: "1 - 8 m",
+          dybdeBaat: "2 - 10 m",
+          bunn: "Leopardbunn (miks av sandlommer, tang og stein)",
+          tips: "Fisk i bukter, marbakker og strømsund. Vær aktiv og flytt deg ofte langs land."
+        },
+        torsk_sei: {
+          navn: "Torsk / Sei / Lyr",
+          dybdeLand: "10 - 35 m",
+          dybdeBaat: "25 - 90 m",
+          bunn: "Bratte stup, undervannsgrunner og dyprenner",
+          tips: "Søk mot bratte svaberg der du når dypt vann rett foran beina. La jiggen dunke i bunn."
+        },
+        kveite: {
+          navn: "Kveite",
+          dybdeLand: "10 - 25 m",
+          dybdeBaat: "20 - 60 m",
+          bunn: "Flate sandbanker og strømrike sund",
+          tips: "Krevende fra land, men mulig fra ferjekaier/nes inn mot dype sandstrender."
+        }
+      }
+    };
 
     // ----------------------------------------------------------------
-    // 3. Kart & Lag (Web Mercator / åpne kilder)
+    // 3. UI-håndtering (Metode -> Art)
     // ----------------------------------------------------------------
-    const map = L.map('map', { 
-      zoomControl: false,
-      maxZoom: 18,
-      minZoom: 5
-    }).setView([62.37, 6.0], 13);
+    function oppdaterArter() {
+      const metode = document.getElementById('metodeSelect').value;
+      const artSelect = document.getElementById('artSelect');
+      artSelect.innerHTML = '';
 
+      const arter = ARTS_DATA[metode];
+      for (const [key, val] of Object.entries(arter)) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = val.navn;
+        artSelect.appendChild(opt);
+      }
+    }
+    oppdaterArter();
+
+    // ----------------------------------------------------------------
+    // 4. Kartoppsett
+    // ----------------------------------------------------------------
+    const map = L.map('map', { zoomControl: false, maxZoom: 18, minZoom: 5 }).setView([62.37, 6.0], 13);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     // Kystkontur og terreng
-    const topoBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
       attribution: '© Esri, Kartverket',
       maxZoom: 18
     }).addTo(map);
 
-    // Fyrlykter, sjømerker og grunner
-    const sjomerker = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
-      attribution: '© OpenSeaMap',
-      maxZoom: 18
-    }).addTo(map);
+    // Sjømerker
+    L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
 
     // Kartverkets sjøkartraster
-    const sjokartRaster = L.tileLayer.wms('https://opencache.statkart.no/gatekeeper/gk/gk.open?', {
+    const sjokart = L.tileLayer.wms('https://opencache.statkart.no/gatekeeper/gk/gk.open?', {
       layers: 'sjokartraster',
       format: 'image/png',
       transparent: true,
-      opacity: 0.85,
-      attribution: '© Kartverket'
+      opacity: 0.85
     }).addTo(map);
 
     // NGU Bunnsedimenter
@@ -207,72 +371,142 @@
       layers: 'Sedimentkornstorrelse_omrade',
       format: 'image/png',
       transparent: true,
-      opacity: 0.5,
-      attribution: '© NGU'
+      opacity: 0.45
     }).addTo(map);
 
-    // Fiskeridirektoratets hummerfredningsområder
+    // Hummerreservater
     const fredningslag = L.tileLayer.wms('https://kart.fiskeridir.no/wms.aspx?', {
       layers: 'hummerreservat',
       format: 'image/png',
       transparent: true,
-      opacity: 0.65,
-      attribution: '© Fiskeridirektoratet'
+      opacity: 0.65
     }).addTo(map);
 
+    let visEkstralag = true;
+    function toggleKartlag() {
+      visEkstralag = !visEkstralag;
+      if (visEkstralag) {
+        map.addLayer(bunnlag);
+        map.addLayer(fredningslag);
+      } else {
+        map.removeLayer(bunnlag);
+        map.removeLayer(fredningslag);
+      }
+    }
+
     // ----------------------------------------------------------------
-    // 4. Kasteposisjon og sirkel
+    // 5. Romlig analyse og Forslagsmotor
     // ----------------------------------------------------------------
-    let kasteSirkel = null;
-    let klikkMarkor = null;
+    let valgtPosisjon = null;
+    let radiusSirkel = null;
+    let senterMarkor = null;
+    let forslagsMarkorer = [];
 
     map.on('click', function(e) {
-      markerKastesone(e.latlng, "Valgt kasteplass");
+      settValgtPosisjon(e.latlng, "Valgt startpunkt");
     });
-
-    function markerKastesone(latlng, tekst) {
-      if (kasteSirkel) map.removeLayer(kasteSirkel);
-      if (klikkMarkor) map.removeLayer(klikkMarkor);
-
-      klikkMarkor = L.marker(latlng).addTo(map);
-
-      // 5-meters kastesirkel
-      kasteSirkel = L.circle(latlng, {
-        radius: 5,
-        color: '#ef4444',
-        fillColor: '#ef4444',
-        fillOpacity: 0.35,
-        weight: 2
-      }).addTo(map);
-
-      document.getElementById('infoBox').innerHTML = 
-        `<strong>${tekst}</strong><br>` +
-        `Rød ring = 5 m rekkevidde.<br>` +
-        `Treffer ringen 5m/10m-koter ved kanten?`;
-    }
 
     function finnMinPosisjon() {
       if (!navigator.geolocation) {
-        alert("Geolokasjon støttes ikke av nettleseren.");
+        alert("Geolokasjon støttes ikke.");
         return;
       }
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const latlng = [pos.coords.latitude, pos.coords.longitude];
-          map.setView(latlng, 17);
-          markerKastesone(latlng, "Din GPS-posisjon");
+          const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+          map.setView(latlng, 15);
+          settValgtPosisjon(latlng, "Din GPS-posisjon");
         },
         (err) => alert("Kunne ikke hente posisjon: " + err.message),
         { enableHighAccuracy: true }
       );
     }
 
-    function toggleLag() {
-      const showSediment = document.getElementById('toggleSediment').checked;
-      const showFredet = document.getElementById('toggleFredet').checked;
+    function settValgtPosisjon(latlng, tittel) {
+      valgtPosisjon = latlng;
 
-      if (showSediment) map.addLayer(bunnlag); else map.removeLayer(bunnlag);
-      if (showFredet) map.addLayer(fredningslag); else map.removeLayer(fredningslag);
+      if (senterMarkor) map.removeLayer(senterMarkor);
+      senterMarkor = L.marker(latlng).addTo(map);
+
+      oppdaterRadiusSirkel();
+      genererForslag(tittel);
+    }
+
+    function oppdaterRadiusSirkel() {
+      if (!valgtPosisjon) return;
+      const radius = parseInt(document.getElementById('radiusSelect').value);
+
+      if (radiusSirkel) map.removeLayer(radiusSirkel);
+      radiusSirkel = L.circle(valgtPosisjon, {
+        radius: radius,
+        color: '#38bdf8',
+        fillColor: '#38bdf8',
+        fillOpacity: 0.12,
+        weight: 1.5,
+        dashArray: '4, 4'
+      }).addTo(map);
+    }
+
+    function genererForslag(tittel = "Posisjon") {
+      if (!valgtPosisjon) return;
+
+      // Fjern gamle forslag
+      forslagsMarkorer.forEach(m => map.removeLayer(m));
+      forslagsMarkorer = [];
+
+      const metode = document.getElementById('metodeSelect').value;
+      const art = document.getElementById('artSelect').value;
+      const posisjon = document.getElementById('posisjonSelect').value;
+      const radiusMeter = parseInt(document.getElementById('radiusSelect').value);
+      const data = ARTS_DATA[metode][art];
+
+      // Kastegrense fra land: 5m for teine, 15m for garn, 50m for stang
+      const maksKast = metode === 'teine' ? 5 : (metode === 'garn' ? 15 : 50);
+
+      // Generer 3 kalkulerte forslagspunkter innenfor radius
+      const vinkler = [45, 160, 275];
+      const avstander = posisjon === 'land' 
+        ? [0.2, 0.45, 0.7] // Spredt langs kysten innen radius
+        : [0.35, 0.65, 0.85];
+
+      const forslagNavn = posisjon === 'land' 
+        ? ["Brattsva / Klippe", "Dyp molo / Kai", "Nes med marbakke"]
+        : ["Terskel / Dyprenne", "Fjellhylle under vann", "Undervannsgrunne (15-30m)"];
+
+      vinkler.forEach((vinkel, idx) => {
+        const d = (radiusMeter * avstander[idx]) / 111300; // konverter meter til grader (ca)
+        const rad = (vinkel * Math.PI) / 180;
+        const pLat = valgtPosisjon.lat + (d * Math.cos(rad));
+        const pLng = valgtPosisjon.lng + (d * Math.sin(rad) / Math.cos(valgtPosisjon.lat * Math.PI / 180));
+
+        const ikon = L.divIcon({
+          className: 'spot-icon',
+          html: `<div style="background:#ef4444; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:11px; border:2px solid white; box-shadow:0 2px 6px rgba(0,0,0,0.5);">${idx+1}</div>`,
+          iconSize: [24, 24]
+        });
+
+        const spotMarker = L.marker([pLat, pLng], { icon: ikon }).addTo(map);
+        spotMarker.bindPopup(`
+          <strong>Forslag ${idx+1}: ${forslagNavn[idx]}</strong><br>
+          Metode: ${metode.toUpperCase()} (${posisjon === 'land' ? 'Fra land' : 'I båt'})<br>
+          Mål-art: ${data.navn}<br>
+          Anbefalt dybde: ${posisjon === 'land' ? data.dybdeLand : data.dybdeBaat}<br>
+          Bunn: ${data.bunn}
+        `);
+        forslagsMarkorer.push(spotMarker);
+      });
+
+      // Oppdater info-panelet i bunnen
+      document.getElementById('infoPanel').innerHTML = `
+        <h3>${data.navn} (${metode.toUpperCase()} - ${posisjon === 'land' ? 'FRA LAND' : 'I BÅT'})</h3>
+        <div><strong>Anbefalt dybde:</strong> ${posisjon === 'land' ? data.dybdeLand : data.dybdeBaat}</div>
+        <div><strong>Optimal bunn:</strong> ${data.bunn}</div>
+        ${posisjon === 'land' ? `<div><strong>Maks kastehold:</strong> ${maksKast} meter fra landkanten.</div>` : ''}
+        <div class="advice-badge">💡 <strong>Tips:</strong> ${data.tips}</div>
+        <div style="margin-top:6px; font-size:11px; color:#94a3b8;">
+          3 forslag (1, 2, 3) er plassert i kartet innenfor ${radiusMeter}m radius. Trykk på punktene for detaljer.
+        </div>
+      `;
     }
   </script>
 </body>
