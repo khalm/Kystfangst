@@ -3,21 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Kystfangst v0.9.1</title>
+  <title>Kystfangst v1.1.0</title>
 
-  <!-- PWA Manifest & Farger -->
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#121826" />
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦀</text></svg>" />
-
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #map { height: 100%; width: 100%; }
 
-    /* Deaktiverer standard kontekstmeny slik at hold-inne fungerer sømløst */
     body {
       -webkit-touch-callout: none;
       -webkit-user-select: none;
@@ -244,7 +240,7 @@
     <div class="top-header">
       <div class="title-group">
         <h1>Kystfangst</h1>
-        <span class="version-tag">v0.9.1</span>
+        <span class="version-tag">v1.1.0</span>
       </div>
       <button id="installBtn" onclick="installerPwa()">Installer app</button>
     </div>
@@ -252,17 +248,10 @@
     <div class="selectors-grid">
       <div class="select-item">
         <label>Metode</label>
-        <select id="metodeSelect" onchange="oppdaterArter(); startOmraadeSkanning();">
+        <select id="metodeSelect" onchange="startOmraadeSkanning();">
           <option value="teine">🦀 Teine</option>
           <option value="garn">🕸️ Garn</option>
           <option value="stang">🎣 Stangfiske</option>
-        </select>
-      </div>
-
-      <div class="select-item">
-        <label>Art</label>
-        <select id="artSelect" onchange="startOmraadeSkanning();">
-          <!-- Fylles dynamisk -->
         </select>
       </div>
 
@@ -274,7 +263,7 @@
         </select>
       </div>
 
-      <div class="select-item">
+      <div class="select-item" style="grid-column: span 2;">
         <label>Søkeradius</label>
         <select id="radiusSelect" onchange="oppdaterRadiusVisuelt(); startOmraadeSkanning();">
           <option value="500">500 m</option>
@@ -285,7 +274,7 @@
       </div>
 
       <div class="select-item" style="grid-column: span 2;">
-        <label>Antall spesifikke punkter</label>
+        <label>Antall viste forslag</label>
         <div class="stepper-container">
           <button class="step-btn" onclick="endreAntallPunkter(-1)">−</button>
           <span class="step-val" id="punktTeller">3 punkter</span>
@@ -301,13 +290,12 @@
   </div>
 
   <div class="info-panel" id="infoPanel">
-    <h3>Områdeskanning & Navigasjon</h3>
-    Trykk raskt i kartet for å skanne. <em>Hold fingeren nede i kartet</em> for å droppe din egen markør.
+    <h3>Ekte Kystanalyse</h3>
+    Trykk i kartet eller bruk GPS. Backend-motoren analyserer området og plukker ut verifiserte kystplasser.
   </div>
 
   <div id="map"></div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     // ----------------------------------------------------------------
@@ -342,112 +330,12 @@
     }
 
     // ----------------------------------------------------------------
-    // 2. Biologiske Habitat-Krav
-    // ----------------------------------------------------------------
-    const ARTS_DATA = {
-      teine: {
-        generelt: {
-          navn: "Alle arter / Generelt",
-          dybdeKravLand: "8 - 25 m (bratt fall)",
-          dybdeKravBaat: "10 - 45 m",
-          foretrukketBunn: ["Stein", "Fjell", "Blokk", "Grov"],
-          unngaBunn: ["Slam", "Leire", "Mudder"],
-          tips: "Let etter moloer og loddrette svaberg der det blir brådypt med en gang."
-        },
-        krabbe: {
-          navn: "Taskekrabbe",
-          dybdeKravLand: "8 - 20 m",
-          dybdeKravBaat: "15 - 45 m",
-          foretrukketBunn: ["Stein", "Blokk", "Grus", "Fjell"],
-          unngaBunn: ["Finkornet leire", "Slam"],
-          tips: "Krabben beiter i overgangen mellom stein og sand. Moloer er bankers fra land."
-        },
-        hummer: {
-          navn: "Hummer",
-          dybdeKravLand: "5 - 20 m",
-          dybdeKravBaat: "8 - 30 m",
-          foretrukketBunn: ["Ur", "Fjell", "Blokk", "Stein"],
-          unngaBunn: ["Sand", "Slam", "Leire"],
-          tips: "Krever store steinblokker eller fjellsprekker for skjul. Må ikke settes i fredningsfelt."
-        }
-      },
-      garn: {
-        generelt: {
-          navn: "Alle arter / Generelt",
-          dybdeKravLand: "10 - 30 m",
-          dybdeKravBaat: "15 - 60 m",
-          foretrukketBunn: ["Sandlommer", "Blandet bunn"],
-          unngaBunn: ["Skarpe fjelldrag"],
-          tips: "Sett langs terskler eller overganger der strømmen fører fisk forbi."
-        },
-        torsk: {
-          navn: "Torsk / Sei",
-          dybdeKravLand: "10 - 25 m",
-          dybdeKravBaat: "20 - 50 m",
-          foretrukketBunn: ["Tare", "Hardbunn", "Stein"],
-          unngaBunn: ["Dypmudder"],
-          tips: "Sund og nes med god strøm gir best uttelling."
-        },
-        flyndre: {
-          navn: "Flyndre / Flatfisk",
-          dybdeKravLand: "4 - 15 m",
-          dybdeKravBaat: "10 - 35 m",
-          foretrukketBunn: ["Sand", "Skjellsand", "Grus"],
-          unngaBunn: ["Grov ur", "Fjellbunn"],
-          tips: "Søk i bukter og viker med flat og finkornet sandbunn."
-        }
-      },
-      stang: {
-        generelt: {
-          navn: "Alle arter / Generelt",
-          dybdeKravLand: "5 - 35 m",
-          dybdeKravBaat: "15 - 80 m",
-          foretrukketBunn: ["Marbakke", "Variert bunn"],
-          unngaBunn: [],
-          tips: "Avsøk flere dybder med sluk og jigg."
-        },
-        sjoorret: {
-          navn: "Sjøørret",
-          dybdeKravLand: "1 - 8 m",
-          dybdeKravBaat: "2 - 10 m",
-          foretrukketBunn: ["Leopardbunn", "Tang", "Sand"],
-          unngaBunn: ["Bart fjell"],
-          tips: "Kast langs marbakker, viker og odder med tang og sandlommer."
-        },
-        torsk_sei: {
-          navn: "Torsk / Sei / Lyr",
-          dybdeKravLand: "10 - 35 m",
-          dybdeKravBaat: "25 - 90 m",
-          foretrukketBunn: ["Brattsva", "Dypkanter"],
-          unngaBunn: ["Langgrunne sandstrender"],
-          tips: "Finn loddrette svaberg der du kaster rett ut i dyprenna."
-        }
-      }
-    };
-
-    function oppdaterArter() {
-      const metode = document.getElementById('metodeSelect').value;
-      const artSelect = document.getElementById('artSelect');
-      artSelect.innerHTML = '';
-
-      const arter = ARTS_DATA[metode];
-      for (const [key, val] of Object.entries(arter)) {
-        const opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = val.navn;
-        artSelect.appendChild(opt);
-      }
-    }
-    oppdaterArter();
-
-    // ----------------------------------------------------------------
-    // 3. Kart & Lag
+    // 2. Kartoppsett
     // ----------------------------------------------------------------
     const map = L.map('map', { 
       zoomControl: false, 
       maxZoom: 18, 
-      minZoom: 5,
-      contextmenu: true // Aktiverer innebygd støtte for hold-inne på touchskjerm
+      minZoom: 5
     }).setView([62.37, 6.0], 13);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -491,9 +379,6 @@
       }
     }
 
-    // ----------------------------------------------------------------
-    // 4. Hjelpefunksjoner for Navigasjon og Kopiering
-    // ----------------------------------------------------------------
     function kopierKoordinater(lat, lng) {
       const coordStr = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
       navigator.clipboard.writeText(coordStr).then(() => {
@@ -508,12 +393,25 @@
     }
 
     // ----------------------------------------------------------------
-    // 5. Feilfri "Hold-inne" (contextmenu) for å droppe egen markør
+    // 3. Egen markør ved hold-inne
     // ----------------------------------------------------------------
+    let touchTimer = null;
+    let erLongPress = false;
     let manuellPin = null;
 
-    map.on('contextmenu', async function(e) {
-      droppEgenPin(e.latlng);
+    map.on('touchstart mousedown', function(e) {
+      erLongPress = false;
+      touchTimer = setTimeout(() => {
+        erLongPress = true;
+        droppEgenPin(e.latlng);
+      }, 700);
+    });
+
+    map.on('touchend mouseup touchmove mousemove dragstart zoomstart', function() {
+      if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+      }
     });
 
     async function droppEgenPin(latlng) {
@@ -526,45 +424,25 @@
       });
 
       manuellPin = L.marker(latlng, { icon: lillaIkon }).addTo(map);
-
-      const bunn = await hentNGUSediment(latlng.lat, latlng.lng) || "Fjell / Hardbunn";
       const navUrl = faaNavigasjonsUrl(latlng.lat, latlng.lng);
 
-      const html = `
+      manuellPin.bindPopup(`
         <div class="popup-title">📍 Egendroppet markør</div>
         <div><strong>Koordinater:</strong> ${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</div>
-        <div><strong>Bunnforhold:</strong> ${bunn}</div>
         <div class="button-group">
           <a class="btn-nav" href="${navUrl}" target="_blank">🗺️ Naviger</a>
           <button class="btn-copy" onclick="kopierKoordinater(${latlng.lat}, ${latlng.lng})">📋 Kopier</button>
         </div>
-      `;
-
-      manuellPin.bindPopup(html).openPopup();
-
-      document.getElementById('infoPanel').innerHTML = `
-        <div class="spot-card" style="border-left-color:#8b5cf6;">
-          <div class="spot-card-header">
-            <span>📍 Egendroppet markør</span>
-            <span style="color:#a78bfa;">VALGT PUNKT</span>
-          </div>
-          <div><strong>Koordinater:</strong> ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}</div>
-          <div><strong>Registrert bunn:</strong> ${bunn}</div>
-          <div class="button-group">
-            <a class="btn-nav" href="${navUrl}" target="_blank">🗺️ Naviger med Google Maps</a>
-            <button class="btn-copy" onclick="kopierKoordinater(${latlng.lat}, ${latlng.lng})">📋 Kopier koordinater</button>
-          </div>
-        </div>
-      `;
+      `).openPopup();
     }
 
     // ----------------------------------------------------------------
-    // 6. Stepper-håndtering (+ / -)
+    // 4. Stepper (+ / -)
     // ----------------------------------------------------------------
     let onsketAntallPunkter = 3;
     function endreAntallPunkter(delta) {
       const nyttAntall = onsketAntallPunkter + delta;
-      if (nyttAntall >= 1 && nyttAntall <= 15) {
+      if (nyttAntall >= 1 && nyttAntall <= 10) {
         onsketAntallPunkter = nyttAntall;
         document.getElementById('punktTeller').textContent = `${onsketAntallPunkter} punkt${onsketAntallPunkter > 1 ? 'er' : ''}`;
         tegnGjeldendePunkterOgSoner();
@@ -572,19 +450,20 @@
     }
 
     // ----------------------------------------------------------------
-    // 7. Områdeskanning
+    // 5. Backend-analyse via Cloudflare Worker
     // ----------------------------------------------------------------
+    const API_ENDPOINT = 'https://kystfangst-api.danielodland.workers.dev';
+
     let senterPosisjon = null;
     let radiusSirkel = null;
     let senterMarkor = null;
-    
     let soneLag = [];
     let funnMarkorer = [];
     let kastesirkler = [];
-    let lagredeEvaluertePunkter = [];
+    let analyseresultater = [];
 
-    // Enkelt-klikk starter skann
     map.on('click', function(e) {
+      if (erLongPress) return;
       settSenterOgSkann(e.latlng);
     });
 
@@ -614,7 +493,7 @@
         fillColor: '#0284c7',
         fillOpacity: 1,
         weight: 2
-      }).addTo(map).bindPopup("Søkesenter (skanner herfra)");
+      }).addTo(map);
 
       oppdaterRadiusVisuelt();
       startOmraadeSkanning();
@@ -634,173 +513,42 @@
       }).addTo(map);
     }
 
-    async function hentNGUSediment(lat, lng) {
-      const bbox = `${lng-0.001},${lat-0.001},${lng+0.001},${lat+0.001}`;
-      const url = `https://geo.ngu.no/geoserver/marin_sedimentkornstorrelse/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&LAYERS=Sedimentkornstorrelse_omrade&QUERY_LAYERS=Sedimentkornstorrelse_omrade&BBOX=${bbox}&FEATURE_COUNT=1&HEIGHT=101&WIDTH=101&INFO_FORMAT=application/json&SRS=EPSG:4326&X=50&Y=50`;
-
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.features && data.features.length > 0) {
-          const prop = data.features[0].properties;
-          return prop.sediment_kornstorrelse || prop.kornstorrelse || prop.sediment || "Fjell / Blokkmark";
-        }
-      } catch (e) {}
-      return null;
-    }
-
-    function byggBegrunnelse(type, bunn, metode, art, posisjon) {
-      let tekst = "";
-
-      if (posisjon === 'land') {
-        if (type.includes('Molo')) {
-          tekst += `<strong>Hvorfor her:</strong> Moloen er bygget av sprengsteinblokker som stuper bratt ned. Dette gir tilstrekkelig dybde rett ved kanten innenfor ditt 5-meters kastehold. `;
-        } else if (type.includes('Kai') || type.includes('Brygge')) {
-          tekst += `<strong>Hvorfor her:</strong> Dypvannskaier er anlagt der havbunnen er dyp helt inn til landkanten. Du slipper å kaste langt; teina eller snøret kan fires nesten loddrett ned. `;
-        } else {
-          tekst += `<strong>Hvorfor her:</strong> Bratt kystlinje og nes der marbakken ligger kloss opptil land, slik at teina når dypere vann uten å bli liggende i fjøra. `;
-        }
-      } else {
-        tekst += `<strong>Hvorfor her (i båt):</strong> Punktet ligger ved en markant overgang i terrenget med god avstand til grunt vann, gunstig for å sette redskap trygt. `;
-      }
-
-      if (art === 'hummer') {
-        tekst += `Bunnforholdet (${bunn}) gir optimale hulrom og sprekker for hummeren å gjemme seg i.`;
-      } else if (art === 'krabbe') {
-        tekst += `Overgangen mot ${bunn} er en klassisk beiteplass for taskekrabbe på nattestid.`;
-      } else if (art === 'sjoorret') {
-        tekst += `Vannkanten og marbakken her gir god skjul for byttedyr som sjøørreten jakter på.`;
-      } else if (art === 'flyndre') {
-        tekst += `Den jevne bunnen (${bunn}) er perfekt for flatfisk som graver seg ned for å jakte.`;
-      } else {
-        tekst += `Kombinasjonen av strøm og bunntype (${bunn}) tiltrekker seg aktiv fisk og bunndyr.`;
-      }
-
-      return tekst;
-    }
-
     async function startOmraadeSkanning() {
       if (!senterPosisjon) return;
 
       const metode = document.getElementById('metodeSelect').value;
-      const art = document.getElementById('artSelect').value;
       const posisjon = document.getElementById('posisjonSelect').value;
-      const radiusMeter = parseInt(document.getElementById('radiusSelect').value);
-      const profil = ARTS_DATA[metode][art];
+      const radius = parseInt(document.getElementById('radiusSelect').value);
 
       document.getElementById('infoPanel').innerHTML = `
-        <h3>Skanner kyst og dybde (${radiusMeter}m)...</h3>
-        <div>Analyserer faktiske kaianlegg og kystlinje for ${profil.navn}...</div>
+        <h3>Gjennomfører kystanalyse...</h3>
+        <div>Beregner kystvektorer og sedimenter via backend (${radius}m radius)...</div>
       `;
 
-      const dLat = radiusMeter / 111300;
-      const dLng = radiusMeter / (111300 * Math.cos(senterPosisjon.lat * Math.PI / 180));
-      const s = senterPosisjon.lat - dLat;
-      const w = senterPosisjon.lng - dLng;
-      const n = senterPosisjon.lat + dLat;
-      const e = senterPosisjon.lng + dLng;
-
-      // Spør OSM spesifikt etter faktiske kaier, piler, moloer og kystlinje
-      const overpassQuery = `[out:json][timeout:15];
-        (
-          way["man_made"~"breakwater|pier|quay|wharf"](${s},${w},${n},${e});
-          way["natural"="coastline"](${s},${w},${n},${e});
-          node["natural"="cape"](${s},${w},${n},${e});
-        );
-        out geom 120;`;
-
-      let kandidatSteder = [];
-
       try {
-        const resp = await fetch('https://overpass-api.de/api/interpreter', {
-          method: 'POST',
-          body: overpassQuery
-        });
-        const geoData = await resp.json();
+        const queryUrl = `${API_ENDPOINT}?lat=${senterPosisjon.lat}&lng=${senterPosisjon.lng}&radius=${radius}&metode=${metode}&posisjon=${posisjon}`;
+        const res = await fetch(queryUrl);
+        const data = await res.json();
 
-        geoData.elements.forEach(el => {
-          if (el.type === 'node') {
-            kandidatSteder.push({ lat: el.lat, lng: el.lon, type: 'Odde / Marbakke', bonus: 18 });
-          } else if (el.geometry && el.geometry.length > 0) {
-            // Hent punkter langs geometrien
-            const steg = Math.max(1, Math.floor(el.geometry.length / 5));
-            for (let i = 0; i < el.geometry.length; i += steg) {
-              const pt = el.geometry[i];
-              let t = 'Svaberg / Kystkant';
-              let bonus = 12;
-              if (el.tags?.man_made === 'breakwater') { t = 'Molo (Sprengstein)'; bonus = 30; }
-              else if (el.tags?.man_made === 'pier' || el.tags?.man_made === 'quay' || el.tags?.man_made === 'wharf') { 
-                t = 'Dypvannskai / Brygge'; 
-                bonus = 32; 
-              }
-              kandidatSteder.push({ lat: pt.lat, lng: pt.lon, type: t, bonus: bonus });
-            }
-          }
-        });
+        if (data.error || !data.spots || data.spots.length === 0) {
+          analyseresultater = [];
+          tegnGjeldendePunkterOgSoner();
+          document.getElementById('infoPanel').innerHTML = `
+            <h3>Ingen kystformasjoner funnet</h3>
+            <div>Ingen moloer eller kystkanter registrert innenfor ${radius}m. Prøv å øke radius eller trykk nærmere kysten.</div>
+          `;
+          return;
+        }
+
+        analyseresultater = data.spots;
+        tegnGjeldendePunkterOgSoner();
+
       } catch (err) {
-        console.warn("Overpass fallback", err);
+        document.getElementById('infoPanel').innerHTML = `
+          <h3>Kunne ikke kontakte backend</h3>
+          <div>Sjekk at Cloudflare Workeren svarer på nettverket ditt.</div>
+        `;
       }
-
-      // Filtrer kun steder som ligger innenfor sirkelen
-      kandidatSteder = kandidatSteder.filter(k => {
-        return senterPosisjon.distanceTo(L.latLng(k.lat, k.lng)) <= radiusMeter;
-      });
-
-      // Hvis ingen OSM-kystobjekter finnes, sample langs periferien av senterpunktet
-      if (kandidatSteder.length === 0) {
-        for (let angle = 0; angle < 360; angle += 45) {
-          const dist = radiusMeter * 0.4;
-          const rad = (angle * Math.PI) / 180;
-          const pLat = senterPosisjon.lat + ((dist / 111300) * Math.cos(rad));
-          const pLng = senterPosisjon.lng + ((dist / (111300 * Math.cos(senterPosisjon.lat * Math.PI / 180))) * Math.sin(rad));
-          kandidatSteder.push({ lat: pLat, lng: pLng, type: 'Kandidat', bonus: 5 });
-        }
-      }
-
-      lagredeEvaluertePunkter = [];
-      const maksAaAnalysere = Math.min(kandidatSteder.length, 30);
-
-      for (let i = 0; i < maksAaAnalysere; i++) {
-        const k = kandidatSteder[i];
-        let pLat = k.lat;
-        let pLng = k.lng;
-
-        if (posisjon === 'baat') {
-          pLng += 0.002;
-        }
-
-        const bunn = await hentNGUSediment(pLat, pLng) || (k.type.includes('Molo') ? 'Grov stein / Blokk' : 'Fjell / Ur');
-
-        let matchScore = 55 + k.bonus;
-
-        if (profil.foretrukketBunn.some(b => bunn.toLowerCase().includes(b.toLowerCase()))) {
-          matchScore += 25;
-        }
-        if (profil.unngaBunn.some(b => bunn.toLowerCase().includes(b.toLowerCase()))) {
-          matchScore -= 35;
-        }
-
-        if (posisjon === 'land' && metode === 'teine') {
-          if (k.type.includes('Molo') || k.type.includes('Kai') || k.type.includes('Brygge')) {
-            matchScore += 20;
-          }
-        }
-
-        const begrunnelse = byggBegrunnelse(k.type, bunn, metode, art, posisjon);
-
-        lagredeEvaluertePunkter.push({
-          lat: pLat,
-          lng: pLng,
-          type: k.type,
-          bunn: bunn,
-          dybde: posisjon === 'land' ? profil.dybdeKravLand : profil.dybdeKravBaat,
-          score: Math.min(Math.max(matchScore, 40), 99),
-          begrunnelse: begrunnelse
-        });
-      }
-
-      lagredeEvaluertePunkter.sort((a, b) => b.score - a.score);
-      tegnGjeldendePunkterOgSoner();
     }
 
     function tegnGjeldendePunkterOgSoner() {
@@ -811,40 +559,12 @@
       funnMarkorer = [];
       kastesirkler = [];
 
-      if (lagredeEvaluertePunkter.length === 0) return;
+      if (analyseresultater.length === 0) return;
 
-      const metode = document.getElementById('metodeSelect').value;
-      const art = document.getElementById('artSelect').value;
       const posisjon = document.getElementById('posisjonSelect').value;
-      const profil = ARTS_DATA[metode][art];
+      const synlige = analyseresultater.slice(0, onsketAntallPunkter);
 
-      lagredeEvaluertePunkter.forEach(spot => {
-        if (spot.score >= 65) {
-          const erToppSone = spot.score >= 80;
-          const soneFarge = erToppSone ? '#22c55e' : '#06b6d4';
-          const radiusMeter = posisjon === 'land' ? 45 : 85;
-
-          const skySone = L.circle([spot.lat, spot.lng], {
-            radius: radiusMeter,
-            color: soneFarge,
-            fillColor: soneFarge,
-            fillOpacity: erToppSone ? 0.22 : 0.12,
-            weight: 1,
-            dashArray: '3, 6'
-          }).addTo(map);
-
-          skySone.bindPopup(`
-            <strong>${erToppSone ? '🌟 Meget god sone' : '👍 God sone'}: ${spot.type}</strong><br>
-            Bunn: ${spot.bunn}<br>
-            <em>Gunstig kystformasjon for ${profil.navn}.</em>
-          `);
-          soneLag.push(skySone);
-        }
-      });
-
-      const synligePunkter = lagredeEvaluertePunkter.slice(0, onsketAntallPunkter);
-
-      synligePunkter.forEach((spot, idx) => {
+      synlige.forEach((spot, idx) => {
         let farge = '#ef4444';
         if (idx === 0) farge = '#eab308';
         else if (idx === 1) farge = '#94a3b8';
@@ -852,6 +572,18 @@
         else if (spot.score >= 80) farge = '#22c55e';
         else farge = '#38bdf8';
 
+        // Sky-sone rundt punktet
+        const sky = L.circle([spot.lat, spot.lng], {
+          radius: posisjon === 'land' ? 45 : 85,
+          color: farge,
+          fillColor: farge,
+          fillOpacity: 0.18,
+          weight: 1,
+          dashArray: '3, 6'
+        }).addTo(map);
+        soneLag.push(sky);
+
+        // Markeringsikon
         const ikon = L.divIcon({
           className: 'spot-icon',
           html: `<div style="background:${farge}; color:white; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; border:2px solid white; box-shadow:0 3px 8px rgba(0,0,0,0.6);">${idx+1}</div>`,
@@ -860,7 +592,7 @@
 
         const m = L.marker([spot.lat, spot.lng], { icon: ikon }).addTo(map);
 
-        if (posisjon === 'land' && metode === 'teine') {
+        if (posisjon === 'land') {
           const sirkel = L.circle([spot.lat, spot.lng], {
             radius: 5,
             color: farge,
@@ -876,13 +608,12 @@
         m.bindPopup(`
           <div class="popup-title">Plass #${idx+1}: ${spot.type}</div>
           <div><strong>Kvalitetsscore:</strong> <span style="color:${farge}; font-weight:bold;">${spot.score}%</span></div>
-          <div><strong>Bunn:</strong> ${spot.bunn} | <strong>Dybde:</strong> ${spot.dybde}</div>
+          <div><strong>Bunnforhold:</strong> ${spot.bunn}</div>
           <div class="popup-reason">${spot.begrunnelse}</div>
           <div class="button-group">
             <a class="btn-nav" href="${navUrl}" target="_blank">🗺️ Naviger</a>
             <button class="btn-copy" onclick="kopierKoordinater(${spot.lat}, ${spot.lng})">📋 Kopier</button>
           </div>
-          ${posisjon === 'land' ? '<div style="margin-top:6px; font-size:10px; color:#94a3b8;">Sirkel = 5m kasterekkevidde.</div>' : ''}
         `);
 
         m.on('click', () => {
@@ -892,8 +623,8 @@
         funnMarkorer.push(m);
       });
 
-      if (synligePunkter.length > 0) {
-        visDetaljertFunn(synligePunkter[0], "🥇 Toppforslag (#1)", '#eab308');
+      if (synlige.length > 0) {
+        visDetaljertFunn(synlige[0], "🥇 Toppforslag (#1)", '#eab308');
       }
     }
 
@@ -906,7 +637,7 @@
             <span>${tittel}: ${spot.type}</span>
             <span style="color:#4ade80;">${spot.score}% MATCH</span>
           </div>
-          <div><strong>Bunn:</strong> ${spot.bunn} | <strong>Dybde:</strong> ${spot.dybde}</div>
+          <div><strong>Bunnforhold:</strong> ${spot.bunn}</div>
           <div><strong>Koordinater:</strong> ${spot.lat.toFixed(5)}, ${spot.lng.toFixed(5)}</div>
           <div class="reason-box">${spot.begrunnelse}</div>
           <div class="button-group">
