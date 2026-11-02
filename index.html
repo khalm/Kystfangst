@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Kystfangst v0.9.0</title>
+  <title>Kystfangst v0.9.1</title>
 
   <!-- PWA Manifest & Farger -->
   <link rel="manifest" href="manifest.json" />
@@ -16,6 +16,13 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #map { height: 100%; width: 100%; }
+
+    /* Deaktiverer standard kontekstmeny slik at hold-inne fungerer sømløst */
+    body {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
 
     .top-panel {
       position: absolute;
@@ -140,7 +147,6 @@
     .btn:active { background: #1d4ed8; }
     .btn-secondary { background: #334155; }
 
-    /* Navigasjon og Handlingsknapper i kort */
     .btn-nav {
       background: #0284c7;
       color: white;
@@ -238,7 +244,7 @@
     <div class="top-header">
       <div class="title-group">
         <h1>Kystfangst</h1>
-        <span class="version-tag">v0.9.0</span>
+        <span class="version-tag">v0.9.1</span>
       </div>
       <button id="installBtn" onclick="installerPwa()">Installer app</button>
     </div>
@@ -296,7 +302,7 @@
 
   <div class="info-panel" id="infoPanel">
     <h3>Områdeskanning & Navigasjon</h3>
-    Trykk i kartet for å skanne. <em>Hold inne i 1 sekund</em> for å droppe egen markør hvor som helst.
+    Trykk raskt i kartet for å skanne. <em>Hold fingeren nede i kartet</em> for å droppe din egen markør.
   </div>
 
   <div id="map"></div>
@@ -437,7 +443,12 @@
     // ----------------------------------------------------------------
     // 3. Kart & Lag
     // ----------------------------------------------------------------
-    const map = L.map('map', { zoomControl: false, maxZoom: 18, minZoom: 5 }).setView([62.37, 6.0], 13);
+    const map = L.map('map', { 
+      zoomControl: false, 
+      maxZoom: 18, 
+      minZoom: 5,
+      contextmenu: true // Aktiverer innebygd støtte for hold-inne på touchskjerm
+    }).setView([62.37, 6.0], 13);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
@@ -486,9 +497,9 @@
     function kopierKoordinater(lat, lng) {
       const coordStr = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
       navigator.clipboard.writeText(coordStr).then(() => {
-        alert("Kopierte koordinater til utklippstavlen:\n" + coordStr);
+        alert("Kopierte koordinater:\n" + coordStr);
       }).catch(() => {
-        prompt("Kopier koordinatene herfra:", coordStr);
+        prompt("Kopier herfra:", coordStr);
       });
     }
 
@@ -497,23 +508,12 @@
     }
 
     // ----------------------------------------------------------------
-    // 5. Long-press (Hold inne) for å droppe egen pin
+    // 5. Feilfri "Hold-inne" (contextmenu) for å droppe egen markør
     // ----------------------------------------------------------------
     let manuellPin = null;
-    let pressTimer = null;
 
-    map.on('mousedown touchstart', function(e) {
-      pressTimer = window.setTimeout(async () => {
-        const latlng = e.latlng;
-        droppEgenPin(latlng);
-      }, 650); // 650ms hold-tid for mobil
-    });
-
-    map.on('mouseup touchend dragstart zoomstart', function() {
-      if (pressTimer) {
-        clearTimeout(pressTimer);
-        pressTimer = null;
-      }
+    map.on('contextmenu', async function(e) {
+      droppEgenPin(e.latlng);
     });
 
     async function droppEgenPin(latlng) {
@@ -521,13 +521,12 @@
 
       const lillaIkon = L.divIcon({
         className: 'custom-pin',
-        html: `<div style="background:#8b5cf6; color:white; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:16px; border:2px solid white; box-shadow:0 3px 10px rgba(0,0,0,0.6);">📍</div>`,
-        iconSize: [30, 30]
+        html: `<div style="background:#8b5cf6; color:white; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:18px; border:2px solid white; box-shadow:0 3px 10px rgba(0,0,0,0.6);">📍</div>`,
+        iconSize: [32, 32]
       });
 
       manuellPin = L.marker(latlng, { icon: lillaIkon }).addTo(map);
 
-      // Hent sediment og dybdeestimat for punktet
       const bunn = await hentNGUSediment(latlng.lat, latlng.lng) || "Fjell / Hardbunn";
       const navUrl = faaNavigasjonsUrl(latlng.lat, latlng.lng);
 
@@ -547,7 +546,7 @@
         <div class="spot-card" style="border-left-color:#8b5cf6;">
           <div class="spot-card-header">
             <span>📍 Egendroppet markør</span>
-            <span style="color:#a78bfa;">EGET PUNKT</span>
+            <span style="color:#a78bfa;">VALGT PUNKT</span>
           </div>
           <div><strong>Koordinater:</strong> ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}</div>
           <div><strong>Registrert bunn:</strong> ${bunn}</div>
@@ -573,7 +572,7 @@
     }
 
     // ----------------------------------------------------------------
-    // 7. Områdeskanning med soner og rangerte punkter
+    // 7. Områdeskanning
     // ----------------------------------------------------------------
     let senterPosisjon = null;
     let radiusSirkel = null;
@@ -584,7 +583,7 @@
     let kastesirkler = [];
     let lagredeEvaluertePunkter = [];
 
-    // Enkelt-klikk for områdeskann (kun hvis man ikke holdt inne)
+    // Enkelt-klikk starter skann
     map.on('click', function(e) {
       settSenterOgSkann(e.latlng);
     });
@@ -691,7 +690,7 @@
 
       document.getElementById('infoPanel').innerHTML = `
         <h3>Skanner kyst og dybde (${radiusMeter}m)...</h3>
-        <div>Beregner habitatsoner og forbereder navigasjon for ${profil.navn}...</div>
+        <div>Analyserer faktiske kaianlegg og kystlinje for ${profil.navn}...</div>
       `;
 
       const dLat = radiusMeter / 111300;
@@ -701,13 +700,14 @@
       const n = senterPosisjon.lat + dLat;
       const e = senterPosisjon.lng + dLng;
 
-      const overpassQuery = `[out:json][timeout:12];
+      // Spør OSM spesifikt etter faktiske kaier, piler, moloer og kystlinje
+      const overpassQuery = `[out:json][timeout:15];
         (
-          way["man_made"~"breakwater|pier|quay"](${s},${w},${n},${e});
-          node["natural"="cape"](${s},${w},${n},${e});
+          way["man_made"~"breakwater|pier|quay|wharf"](${s},${w},${n},${e});
           way["natural"="coastline"](${s},${w},${n},${e});
+          node["natural"="cape"](${s},${w},${n},${e});
         );
-        out geom 80;`;
+        out geom 120;`;
 
       let kandidatSteder = [];
 
@@ -720,15 +720,19 @@
 
         geoData.elements.forEach(el => {
           if (el.type === 'node') {
-            kandidatSteder.push({ lat: el.lat, lng: el.lon, type: 'Odde / Marbakke', bonus: 15 });
+            kandidatSteder.push({ lat: el.lat, lng: el.lon, type: 'Odde / Marbakke', bonus: 18 });
           } else if (el.geometry && el.geometry.length > 0) {
+            // Hent punkter langs geometrien
             const steg = Math.max(1, Math.floor(el.geometry.length / 5));
             for (let i = 0; i < el.geometry.length; i += steg) {
               const pt = el.geometry[i];
               let t = 'Svaberg / Kystkant';
-              let bonus = 10;
-              if (el.tags?.man_made === 'breakwater') { t = 'Molo (Sprengstein)'; bonus = 28; }
-              else if (el.tags?.man_made === 'pier' || el.tags?.man_made === 'quay') { t = 'Dypvannskai / Brygge'; bonus = 25; }
+              let bonus = 12;
+              if (el.tags?.man_made === 'breakwater') { t = 'Molo (Sprengstein)'; bonus = 30; }
+              else if (el.tags?.man_made === 'pier' || el.tags?.man_made === 'quay' || el.tags?.man_made === 'wharf') { 
+                t = 'Dypvannskai / Brygge'; 
+                bonus = 32; 
+              }
               kandidatSteder.push({ lat: pt.lat, lng: pt.lon, type: t, bonus: bonus });
             }
           }
@@ -737,19 +741,21 @@
         console.warn("Overpass fallback", err);
       }
 
-      if (kandidatSteder.length === 0) {
-        for (let angle = 15; angle < 360; angle += 30) {
-          const dist = radiusMeter * 0.5;
-          const rad = (angle * Math.PI) / 180;
-          const pLat = senterPosisjon.lat + ((dist / 111300) * Math.cos(rad));
-          const pLng = senterPosisjon.lng + ((dist / (111300 * Math.cos(senterPosisjon.lat * Math.PI / 180))) * Math.sin(rad));
-          kandidatSteder.push({ lat: pLat, lng: pLng, type: 'Kystpunkt', bonus: 5 });
-        }
-      }
-
+      // Filtrer kun steder som ligger innenfor sirkelen
       kandidatSteder = kandidatSteder.filter(k => {
         return senterPosisjon.distanceTo(L.latLng(k.lat, k.lng)) <= radiusMeter;
       });
+
+      // Hvis ingen OSM-kystobjekter finnes, sample langs periferien av senterpunktet
+      if (kandidatSteder.length === 0) {
+        for (let angle = 0; angle < 360; angle += 45) {
+          const dist = radiusMeter * 0.4;
+          const rad = (angle * Math.PI) / 180;
+          const pLat = senterPosisjon.lat + ((dist / 111300) * Math.cos(rad));
+          const pLng = senterPosisjon.lng + ((dist / (111300 * Math.cos(senterPosisjon.lat * Math.PI / 180))) * Math.sin(rad));
+          kandidatSteder.push({ lat: pLat, lng: pLng, type: 'Kandidat', bonus: 5 });
+        }
+      }
 
       lagredeEvaluertePunkter = [];
       const maksAaAnalysere = Math.min(kandidatSteder.length, 30);
@@ -775,7 +781,9 @@
         }
 
         if (posisjon === 'land' && metode === 'teine') {
-          if (k.type.includes('Molo') || k.type.includes('Kai')) matchScore += 15;
+          if (k.type.includes('Molo') || k.type.includes('Kai') || k.type.includes('Brygge')) {
+            matchScore += 20;
+          }
         }
 
         const begrunnelse = byggBegrunnelse(k.type, bunn, metode, art, posisjon);
@@ -786,7 +794,7 @@
           type: k.type,
           bunn: bunn,
           dybde: posisjon === 'land' ? profil.dybdeKravLand : profil.dybdeKravBaat,
-          score: Math.min(Math.max(matchScore, 40), 98),
+          score: Math.min(Math.max(matchScore, 40), 99),
           begrunnelse: begrunnelse
         });
       }
