@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Kystfangst v1.1.0</title>
+  <title>Kystfangst v1.2.0</title>
 
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#121826" />
@@ -240,7 +240,7 @@
     <div class="top-header">
       <div class="title-group">
         <h1>Kystfangst</h1>
-        <span class="version-tag">v1.1.0</span>
+        <span class="version-tag">v1.2.0</span>
       </div>
       <button id="installBtn" onclick="installerPwa()">Installer app</button>
     </div>
@@ -248,10 +248,17 @@
     <div class="selectors-grid">
       <div class="select-item">
         <label>Metode</label>
-        <select id="metodeSelect" onchange="startOmraadeSkanning();">
+        <select id="metodeSelect" onchange="oppdaterArter(); startOmraadeSkanning();">
           <option value="teine">🦀 Teine</option>
           <option value="garn">🕸️ Garn</option>
           <option value="stang">🎣 Stangfiske</option>
+        </select>
+      </div>
+
+      <div class="select-item">
+        <label>Art</label>
+        <select id="artSelect" onchange="startOmraadeSkanning();">
+          <!-- Fylles dynamisk -->
         </select>
       </div>
 
@@ -263,7 +270,7 @@
         </select>
       </div>
 
-      <div class="select-item" style="grid-column: span 2;">
+      <div class="select-item">
         <label>Søkeradius</label>
         <select id="radiusSelect" onchange="oppdaterRadiusVisuelt(); startOmraadeSkanning();">
           <option value="500">500 m</option>
@@ -291,7 +298,7 @@
 
   <div class="info-panel" id="infoPanel">
     <h3>Ekte Kystanalyse</h3>
-    Trykk i kartet eller bruk GPS. Backend-motoren analyserer området og plukker ut verifiserte kystplasser.
+    Trykk i kartet for å søke. <em>Hold fingeren nede i kartet</em> for å droppe din egen markør.
   </div>
 
   <div id="map"></div>
@@ -330,7 +337,29 @@
     }
 
     // ----------------------------------------------------------------
-    // 2. Kartoppsett
+    // 2. Artsliste per metode
+    // ----------------------------------------------------------------
+    const ARTS_OPPLEGG = {
+      teine: ["Alle arter / Generelt", "Hummer", "Taskekrabbe"],
+      garn: ["Alle arter / Generelt", "Torsk / Sei", "Flyndre / Flatfisk"],
+      stang: ["Alle arter / Generelt", "Sjøørret", "Torsk / Sei / Lyr"]
+    };
+
+    function oppdaterArter() {
+      const metode = document.getElementById('metodeSelect').value;
+      const artSelect = document.getElementById('artSelect');
+      artSelect.innerHTML = '';
+      (ARTS_OPPLEGG[metode] || []).forEach(art => {
+        const opt = document.createElement('option');
+        opt.value = art;
+        opt.textContent = art;
+        artSelect.appendChild(opt);
+      });
+    }
+    oppdaterArter();
+
+    // ----------------------------------------------------------------
+    // 3. Kartoppsett
     // ----------------------------------------------------------------
     const map = L.map('map', { 
       zoomControl: false, 
@@ -393,25 +422,12 @@
     }
 
     // ----------------------------------------------------------------
-    // 3. Egen markør ved hold-inne
+    // 4. Feilfri hold-inne via Leaflet contextmenu
     // ----------------------------------------------------------------
-    let touchTimer = null;
-    let erLongPress = false;
     let manuellPin = null;
 
-    map.on('touchstart mousedown', function(e) {
-      erLongPress = false;
-      touchTimer = setTimeout(() => {
-        erLongPress = true;
-        droppEgenPin(e.latlng);
-      }, 700);
-    });
-
-    map.on('touchend mouseup touchmove mousemove dragstart zoomstart', function() {
-      if (touchTimer) {
-        clearTimeout(touchTimer);
-        touchTimer = null;
-      }
+    map.on('contextmenu', function(e) {
+      droppEgenPin(e.latlng);
     });
 
     async function droppEgenPin(latlng) {
@@ -434,15 +450,29 @@
           <button class="btn-copy" onclick="kopierKoordinater(${latlng.lat}, ${latlng.lng})">📋 Kopier</button>
         </div>
       `).openPopup();
+
+      document.getElementById('infoPanel').innerHTML = `
+        <div class="spot-card" style="border-left-color:#8b5cf6;">
+          <div class="spot-card-header">
+            <span>📍 Egendroppet markør</span>
+            <span style="color:#a78bfa;">VALGT PUNKT</span>
+          </div>
+          <div><strong>Koordinater:</strong> ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}</div>
+          <div class="button-group">
+            <a class="btn-nav" href="${navUrl}" target="_blank">🗺️ Naviger med Google Maps</a>
+            <button class="btn-copy" onclick="kopierKoordinater(${latlng.lat}, ${latlng.lng})">📋 Kopier koordinater</button>
+          </div>
+        </div>
+      `;
     }
 
     // ----------------------------------------------------------------
-    // 4. Stepper (+ / -)
+    // 5. Stepper (+ / -)
     // ----------------------------------------------------------------
     let onsketAntallPunkter = 3;
     function endreAntallPunkter(delta) {
       const nyttAntall = onsketAntallPunkter + delta;
-      if (nyttAntall >= 1 && nyttAntall <= 10) {
+      if (nyttAntall >= 1 && nyttAntall <= 8) {
         onsketAntallPunkter = nyttAntall;
         document.getElementById('punktTeller').textContent = `${onsketAntallPunkter} punkt${onsketAntallPunkter > 1 ? 'er' : ''}`;
         tegnGjeldendePunkterOgSoner();
@@ -450,7 +480,7 @@
     }
 
     // ----------------------------------------------------------------
-    // 5. Backend-analyse via Cloudflare Worker
+    // 6. Backend-analyse via Cloudflare Worker
     // ----------------------------------------------------------------
     const API_ENDPOINT = 'https://kystfangst-api.danielodland.workers.dev';
 
@@ -463,7 +493,6 @@
     let analyseresultater = [];
 
     map.on('click', function(e) {
-      if (erLongPress) return;
       settSenterOgSkann(e.latlng);
     });
 
@@ -522,7 +551,7 @@
 
       document.getElementById('infoPanel').innerHTML = `
         <h3>Gjennomfører kystanalyse...</h3>
-        <div>Beregner kystvektorer og sedimenter via backend (${radius}m radius)...</div>
+        <div>Beregner kystlinje og dybdeforhold via backend (${radius}m)...</div>
       `;
 
       try {
@@ -535,7 +564,7 @@
           tegnGjeldendePunkterOgSoner();
           document.getElementById('infoPanel').innerHTML = `
             <h3>Ingen kystformasjoner funnet</h3>
-            <div>Ingen moloer eller kystkanter registrert innenfor ${radius}m. Prøv å øke radius eller trykk nærmere kysten.</div>
+            <div>Ingen moloer, kaier eller kystkanter registrert innenfor ${radius}m. Prøv å trykke nærmere land.</div>
           `;
           return;
         }
@@ -546,7 +575,7 @@
       } catch (err) {
         document.getElementById('infoPanel').innerHTML = `
           <h3>Kunne ikke kontakte backend</h3>
-          <div>Sjekk at Cloudflare Workeren svarer på nettverket ditt.</div>
+          <div>Sjekk nettverkstilkoblingen til Cloudflare Workeren.</div>
         `;
       }
     }
@@ -572,7 +601,6 @@
         else if (spot.score >= 80) farge = '#22c55e';
         else farge = '#38bdf8';
 
-        // Sky-sone rundt punktet
         const sky = L.circle([spot.lat, spot.lng], {
           radius: posisjon === 'land' ? 45 : 85,
           color: farge,
@@ -583,7 +611,6 @@
         }).addTo(map);
         soneLag.push(sky);
 
-        // Markeringsikon
         const ikon = L.divIcon({
           className: 'spot-icon',
           html: `<div style="background:${farge}; color:white; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; border:2px solid white; box-shadow:0 3px 8px rgba(0,0,0,0.6);">${idx+1}</div>`,
